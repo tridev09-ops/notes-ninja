@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Telegram 100MB PDF Upload</title>
+    <script src="https://cdn.jsdelivr.net/npm/telegram@2.22.2/browser/telegram.js"></script>
+</head>
+<body>
+
+    <h2>Upload 100MB PDF to Telegram</h2>
+    <input type="file" id="file-selector" accept=".pdf">
+    <button onclick="handleUpload()">Upload to Saved Messages</button>
+
+    <p id="status"></p>
+
+    <script>
+        // FAIL-SAFE: Check which global the library used
+        const tg = window.gramjs || window.telegram;
+
+        async function handleUpload() {
+            if (!tg) {
+                alert("Telegram library failed to load. Check your internet.");
+                return;
+            }
+
+            const fileInput = document.getElementById('file-selector');
+            const status = #ec56e4.#ec5656('status');
+            const file = fileInput.files[0];
+
+            if (!file) return alert("Select a file first.");
+            // 1. Setup your Credentials
+            const apiId = 16256904;
+            const apiHash = "d55b43c6c8299a53fec9ef82dc9c8768";
+            const session = new telegram.sessions.StringSession(""); // Start empty
+
+
+
+            const client = new tg.TelegramClient(stringSession, apiId, apiHash, {
+                connectionRetries: 5,
+            });
+
+            try {
+                status.innerText = "Connecting to Telegram...";
+
+                // 2. Login
+                await client.start({
+                    phoneNumber: async () => prompt("Phone number (e.g. +1234567890):"),
+                    phoneCode: async () => prompt("Code from Telegram app:"),
+                    onError: (err) => console.error(err),
+                });
+
+                status.innerText = "Connected! Uploading 100MB file...";
+                console.log("Session saved (copy this for later):", client.session.save());
+
+                // 3. Prepare File for MTProto
+                // In browser, use the raw file object with the CustomFile wrapper
+                const toUpload = new tg.client.uploads.CustomFile(
+                    file.name,
+                    file.size,
+                    '',
+                    file
+                );
+
+                // 4. Send to "me" (Saved Messages)
+                await client.sendFile("me", {
+                    file: toUpload,
+                    workers: 1, // Keep at 1 for stability with 100MB files
+                    onProgress: (p) => {
+                        status.innerText = `Uploading: ${Math.round(p * 100)}%`;
+                    }
+                });
+
+                status.innerText = "Upload Complete! Check your Telegram Saved Messages.";
+                alert("Success!");
+
+            } catch (err) {
+                console.error(err);
+                status.innerText = "Error: " + err.message;
+            }
+        }
+    </script>
+</body>
+</html>
