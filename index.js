@@ -11,9 +11,15 @@ import express from "express"
 const app = express()
 dotenv.config()
 
+// Use built-in middleware to parse the body
+app.use(express.json()); // For JSON-encoded bodies
+app.use(express.urlencoded({
+    extended: true
+})); // For URL-encoded form data
+
 const port = process.env.PORT
 const session_str = process.env.SESSION_STR
-const apiId = process.env.API_ID
+const apiId = parseInt(process.env.API_ID)
 const apiHash = process.env.API_HASH
 
 const stringSession = new StringSession(session_str) // fill this later with the value from session.save()
@@ -47,42 +53,58 @@ let client;
         onError: (err) => console.log(err),
     })
     console.log("You should now be connected.")
-    console.log(client.session.save()) // Save session string to avoid logging in again
-    /*const filename = async () =>
-        new Promise((resolve) =>
-            rl.question("Enter the file name: ", resolve)
-    )*/
+    // console.log(client.session.save()) // Save session string to avoid logging in again
 })()
 
-// upload file to telegram
-client.sendFile("me", {
-    file: async () =>
-    new Promise((resolve) =>
-        rl.question("Enter the file name: ", resolve)
-    ), // Path to your file in Termux
-    caption: "hello",
-    forceDocument: true, // Ensures it's sent as a file, not a preview
-    onError: (err) => console.log(err),
+app.get("/", async(req, res)=> {
+    res.send("home page")
 })
 
-/*
+app.get("/download/:filename", async (req, res) => {
+    const filename = req.params.filename
+    
+    const messages = await client.getMessages("me", {
+        limit: 1,
+        search: filename
+    });
+    console.log(messages)
+
+    const fileName = messages[0].file.name || "file.pdf";
+    const media = messages[0].media;
+
+    // Set headers so the browser knows it's a PDF download
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+    // Use GramJS iterDownload to stream chunks
+    for await (const chunk of client.iterDownload({
+        file: media, requestSize: 1024 * 1024, // 1MB chunks
+        workers: 4 // 4 parallel streams
+    })) {
+        res.write(chunk); // Send each chunk to the browser as it arrives
+    }
+    res.end(); // Done!
+});
+
+
 app.get("/upload/:filename", async(req, res)=> {
     const filename = req.params.filename
-    const filename = async () =>
-        new Promise((resolve) =>
-            rl.question("Enter the file name: ", resolve)
-    ),
+
     // upload file to telegram
     await client.sendFile("me", {
-        file: `./${filename}`, // Path to your file in Termux
+        file: `./${filename}.pdf`, // Path to your file in Termux
         caption: filename,
         forceDocument: true, // Ensures it's sent as a file, not a preview
     })
-
+    r
     console.log("PDF uploaded successfully!")
+    res.send("PDF uploaded successfully!")
+
+    // error handling
+    console.error(err.stack); // Log the error for debugging
+    res.status(err.status || 500).send('Something broke!'); // Send a generic error response
 })
 
 app.listen(port, ()=> {
-    console.log(`App is running on localhost:${port}`)
+    console.log(`App is running on http//localhost:${port}`)
 })
-*/
